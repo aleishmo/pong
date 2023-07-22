@@ -1,0 +1,72 @@
+* {
+    box-sizing: border-box;
+}
+
+@font-face {
+    font-family: Pong-Score;
+    src: url('pong-score.woff2') format('woff2');
+}
+
+body {
+    background-color: black;
+    color: white;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+}
+
+#gameScreen {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.paddle {
+    background-color: white;
+    width: 2vh;
+    height: 16vh;
+    position: absolute;
+}
+
+#paddle1 {
+    left: 5vw;
+}
+
+#paddle2 {
+    right: 5vw;
+}
+
+#net {
+    border-color: white;
+    border-left-width: 1vh;
+    border-left-style: dashed;
+    width: 0;
+    height: 100vh;
+    position: absolute;
+    left: calc(50vw - 0.5vw);
+}
+
+.scoreboard {
+    color: white;
+    font-family: Pong-Score;
+    position: absolute;
+    font-size: 6vh;
+}
+
+#scoreboard1 {
+    left: 25vw;
+    top: 5vh;
+}
+
+#scoreboard2 {
+    right: 25vw;
+    top: 5vh;
+    text-align: right;
+}
+
+#ball {
+    background-color: white;
+    width: 2vh;
+    height: 2vh;
+    position: absolute;
+}
