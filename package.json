@@ -1,0 +1,16 @@
+{
+  "name": "pong",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "pong style game",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "author": "Aleisha Bliesner",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^29.5.4",
+    "jest": "^29.6.4"
+  }
+}

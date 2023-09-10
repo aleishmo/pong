@@ -1,6 +1,7 @@
 import { getElementById } from "./getElementById.js"
 import { centerVertically } from "./centerVertically.js"
 import { randomRange } from "./randomRange.js"
+import { doRectanglesIntersect } from "./doRectanglesIntersect.js"
 
 export class GameScreen {
     constructor() {
@@ -9,12 +10,18 @@ export class GameScreen {
             paddle2: getElementById('paddle2'),
             ball: getElementById('ball'),
             scoreboard1: getElementById('scoreboard1'),
-            scoreboard2: getElementById('scoreboard2'), 
+            scoreboard2: getElementById('scoreboard2'),
         }
         this.updateTimerId = undefined // Stores the ID of the interval used to update the game state continuously.
         this.ballVelocity = 0 // The velocity of the ball
-        this.ballAngle = 0
-        this.ballPosition = [0, 0] // An array representing the horizontal and vertical position of the ball in pixels.
+        this.ballPosition = {
+            x: 0,
+            y: 0
+        }
+        this.ballDirection = {
+            x: 0,
+            y: 0
+        }
         this.scores = [0, 0]
         this.lastUpdateTime = undefined // Stores the timestamp of the last game update to calculate the time elapsed between updates.
         this.fps = 30 // The desired frames per second for the game. It's set to 30, meaning the game aims to update the screen 30 times per second.
@@ -42,19 +49,27 @@ export class GameScreen {
         if (this.updateTimerId) clearInterval(this.updateTimerId)
     }
 
+    updateBallPosition(x, y) {
+        this.ballPosition = { x, y }
+        this.elements.ball.style.left = `${Math.floor(this.ballPosition.x)}px`
+        this.elements.ball.style.top = `${Math.floor(this.ballPosition.y)}px`
+    }
+
     newRound() {
-        // Centers ball vertically and horizontally on the game screen.
-        centerVertically(this.elements.ball)
-        this.elements.ball.style.left = `${(document.body.clientWidth / 2) - (this.elements.ball.offsetWidth / 2)}px`
+        this.ballVelocity = document.body.clientWidth / 5
 
-        // Sets the initial position of the ball in the ballPosition array.
-        this.ballPosition[0] = this.elements.ball.offsetLeft
-        this.ballPosition[1] = this.elements.ball.offsetTop
+        let ballAngle = randomRange(Math.PI * -0.25, Math.PI * 0.25)
+        ballAngle += Math.random() < 0.5 ? 0 : Math.PI
 
-        this.ballVelocity = document.body.clientWidth / 10
+        this.ballDirection = {
+            x: Math.cos(ballAngle),
+            y: Math.sin(ballAngle)
+        }
 
-        this.ballAngle = randomRange(Math.PI * -0.25, Math.PI * 0.25)
-        this.ballAngle += Math.random() < 0.5 ? 0 : Math.PI
+        this.updateBallPosition(
+            (document.body.clientWidth / 2) - (this.elements.ball.offsetWidth / 2),
+            (document.body.clientHeight / 2) - (this.elements.ball.offsetHeight / 2)
+        )
     }
 
     // The update method is the heart of the game loop and is called repeatedly based on the set interval. 
@@ -69,32 +84,58 @@ export class GameScreen {
         const elapsedMs = Date.now() - this.lastUpdateTime
         const elapsedSeconds = elapsedMs / 1000
 
-        // let newPosition = getNewBallPosition(this.ballPosition, this.ballAngle, this.ballVelocity, elapsedSeconds)
-        const velocityXY = getXYFromAngleAndVelocity(this.ballAngle, this.ballVelocity)
-        let newPosition = getNewBallPosition(this.ballPosition, this.ballAngle, this.ballVelocity, elapsedSeconds)
-        if ((newPosition[1] <= 0 && velocityXY[1] < 0) || (newPosition[1] + this.elements.ball.offsetHeight >= document.body.clientHeight && velocityXY[1] > 0)) {
-            velocityXY[1] *= -1
-            const newAngleAndVelocity = getAngleAndVelocityFromXY(velocityXY[0], velocityXY[1])
-            this.ballAngle = newAngleAndVelocity[0]
-            this.ballVelocity = newAngleAndVelocity[1]
-            newPosition = getNewBallPosition(this.ballPosition, this.ballAngle, this.ballVelocity, elapsedSeconds)
+        let newBallPosition = {
+            x: this.ballPosition.x + this.ballDirection.x * this.ballVelocity * elapsedSeconds,
+            y: this.ballPosition.y + this.ballDirection.y * this.ballVelocity * elapsedSeconds
         }
-        this.ballPosition = newPosition
 
-        if (newPosition[0] <= 0) {
+        const isBallHeadingAboveScreen = newBallPosition.y <= 0 && this.ballDirection.y < 0
+        const isBallHeadingBelowScreen = newBallPosition.y + this.elements.ball.offsetHeight >= document.body.clientHeight && this.ballDirection.y > 0
+
+        if (isBallHeadingAboveScreen || isBallHeadingBelowScreen) {
+            this.ballDirection.y *= -1
+        }
+
+        const ballRect = {
+            x: this.elements.ball.offsetLeft,
+            y: this.elements.ball.offsetTop,
+            width: this.elements.ball.offsetWidth,
+            height: this.elements.ball.offsetHeight
+        }
+
+        const paddle1Rect = {
+            x: this.elements.paddle1.offsetLeft,
+            y: this.elements.paddle1.offsetTop,
+            width: this.elements.paddle1.offsetWidth,
+            height: this.elements.paddle1.offsetHeight
+        }
+
+        const paddle2Rect = {
+            x: this.elements.paddle2.offsetLeft,
+            y: this.elements.paddle2.offsetTop,
+            width: this.elements.paddle2.offsetWidth,
+            height: this.elements.paddle2.offsetHeight
+        }
+
+        const didHitPaddle1 = doRectanglesIntersect(ballRect, paddle1Rect) && this.ballDirection.x < 0
+        const didHitPaddle2 = doRectanglesIntersect(ballRect, paddle2Rect) && this.ballDirection.x > 0
+
+        if (didHitPaddle1 || didHitPaddle2) {
+            this.ballDirection.x *= -1
+        }
+
+        this.updateBallPosition(newBallPosition.x, newBallPosition.y)
+
+        if (newBallPosition.x <= 0) {
             this.scores[1] += 1
             this.elements.scoreboard2.innerText = this.scores[1]
             this.newRound()
         }
-        if (newPosition[0] >= document.body.clientWidth) {
+        if (newBallPosition.x >= document.body.clientWidth) {
             this.scores[0] += 1
             this.elements.scoreboard1.innerText = this.scores[0]
             this.newRound()
         }
-
-        // Updates the HTML element representing the ball on the screen to reflect its new position 
-        this.elements.ball.style.left = `${Math.floor(this.ballPosition[0])}px`
-        this.elements.ball.style.top = `${Math.floor(this.ballPosition[1])}px`
 
         // Updates the lastUpdateTime.
         this.lastUpdateTime = Date.now()
@@ -119,17 +160,3 @@ export class GameScreen {
         }
     }
 }
-
-function getNewBallPosition(ballPosition, angle, velocity, elapsedSeconds) {
-    const offset = [velocity * elapsedSeconds * Math.cos(angle), velocity * elapsedSeconds * Math.sin(angle)]
-    return [ballPosition[0] + offset[0], ballPosition[1] + offset[1]]
-}
-
-function getXYFromAngleAndVelocity(angle, velocity) {
-    return [velocity * Math.cos(angle), velocity * Math.sin(angle)]
-}
-
-function getAngleAndVelocityFromXY(x, y) {
-    return [Math.atan2(y, x), Math.sqrt(x * x + y * y)]
-}
-
