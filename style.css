@@ -50,7 +50,7 @@ body {
 
 .scoreboard {
     color: white;
-    font-family: Pong-Score;
+    font-family: Pong-Font;
     position: absolute;
     font-size: 6vh;
 }
@@ -71,4 +71,37 @@ body {
     width: 2vh;
     height: 2vh;
     position: absolute;
+}
+
+#gameOverOverlay {
+    position: absolute;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 3vh;
+    visibility: hidden;
+}
+
+#gameOverMessage {
+    background-color: black;
+    font-size: 6vh;
+    font-family: Pong-Font;
+}
+
+#restartButton {
+    font-size: 3vh;
+    font-family: Pong-Font;
+    padding: 1vh;
+    background-color: #000;
+    color: #fff;
+    border: 3px solid #fff;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+#restartButton:hover {
+    background-color: #666
 }

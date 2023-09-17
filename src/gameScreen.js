@@ -3,14 +3,17 @@ import { centerVertically } from "./centerVertically.js"
 import { randomRange } from "./randomRange.js"
 import { doRectanglesIntersect } from "./doRectanglesIntersect.js"
 
+const WINNING_SCORE = 2
+
 export class GameScreen {
     constructor() {
         this.elements = {
-            paddle1: getElementById('paddle1'),
-            paddle2: getElementById('paddle2'),
+            paddles: [getElementById('paddle1'), getElementById('paddle2')],
             ball: getElementById('ball'),
-            scoreboard1: getElementById('scoreboard1'),
-            scoreboard2: getElementById('scoreboard2'),
+            scoreboard: [getElementById('scoreboard1'), getElementById('scoreboard2')],
+            gameOverOverlay: getElementById('gameOverOverlay'),
+            gameOverMessage: getElementById('gameOverMessage'),
+            restartButton: getElementById('restartButton')
         }
         this.updateTimerId = undefined // Stores the ID of the interval used to update the game state continuously.
         this.ballVelocity = 0 // The velocity of the ball
@@ -25,24 +28,36 @@ export class GameScreen {
         this.scores = [0, 0]
         this.lastUpdateTime = undefined // Stores the timestamp of the last game update to calculate the time elapsed between updates.
         this.fps = 30 // The desired frames per second for the game. It's set to 30, meaning the game aims to update the screen 30 times per second.
+        this.isGameOver = false
+
+        this.elements.restartButton.addEventListener('click', () => this.start())
+
+        this.pressedKeys = {};
+        document.addEventListener('keydown', (event) => {
+            this.pressedKeys[event.key] = true;
+        });
+        document.addEventListener('keyup', (event) => {
+            this.pressedKeys[event.key] = false;
+        });
     }
 
     start() {
+        this.isGameOver = false
+        this.elements.gameOverOverlay.style.visibility = 'hidden'
+
         this.newRound()
 
         // Centers paddles vertically on the game screen.
-        centerVertically(this.elements.paddle1)
-        centerVertically(this.elements.paddle2)
+        centerVertically(this.elements.paddles[0])
+        centerVertically(this.elements.paddles[1])
 
         // Sets the initial scores on the scoreboards to zero.
-        this.elements.scoreboard1.innerText = '0'
-        this.elements.scoreboard2.innerText = '0'
+        this.scores = [0, 0]
+        this.elements.scoreboard.forEach(scoreboard => scoreboard.innerText = '0')
 
         // Starts the game loop by setting an interval with a frequency of 1000 / this.fps (which is approximately 33.33 ms for a target of 30 FPS). The interval triggers the update method repeatedly to update the game state.
         this.updateTimerId = setInterval(() => this.update(), 1000 / this.fps)
 
-        // Add event listener to handle keyboard input
-        document.addEventListener('keydown', this.handleKeyDown.bind(this));
     }
 
     stop() {
@@ -84,79 +99,118 @@ export class GameScreen {
         const elapsedMs = Date.now() - this.lastUpdateTime
         const elapsedSeconds = elapsedMs / 1000
 
-        let newBallPosition = {
-            x: this.ballPosition.x + this.ballDirection.x * this.ballVelocity * elapsedSeconds,
-            y: this.ballPosition.y + this.ballDirection.y * this.ballVelocity * elapsedSeconds
+        try {
+            if (this.isGameOver) return
+
+            this.handleKeyDown(elapsedSeconds)
+
+            let newBallPosition = {
+                x: this.ballPosition.x + this.ballDirection.x * this.ballVelocity * elapsedSeconds,
+                y: this.ballPosition.y + this.ballDirection.y * this.ballVelocity * elapsedSeconds
+            }
+
+            const isBallHeadingAboveScreen = newBallPosition.y <= 0 && this.ballDirection.y < 0
+            const isBallHeadingBelowScreen = newBallPosition.y + this.elements.ball.offsetHeight >= document.body.clientHeight && this.ballDirection.y > 0
+
+            if (isBallHeadingAboveScreen || isBallHeadingBelowScreen) {
+                this.ballDirection.y *= -1
+            }
+
+            const ballRect = {
+                x: this.elements.ball.offsetLeft,
+                y: this.elements.ball.offsetTop,
+                width: this.elements.ball.offsetWidth,
+                height: this.elements.ball.offsetHeight
+            }
+
+            const paddle1Rect = {
+                x: this.elements.paddles[0].offsetLeft,
+                y: this.elements.paddles[0].offsetTop,
+                width: this.elements.paddles[0].offsetWidth,
+                height: this.elements.paddles[0].offsetHeight
+            }
+
+            const paddle2Rect = {
+                x: this.elements.paddles[1].offsetLeft,
+                y: this.elements.paddles[1].offsetTop,
+                width: this.elements.paddles[1].offsetWidth,
+                height: this.elements.paddles[1].offsetHeight
+            }
+
+            const didHitPaddle1 = doRectanglesIntersect(ballRect, paddle1Rect) && this.ballDirection.x < 0
+            const didHitPaddle2 = doRectanglesIntersect(ballRect, paddle2Rect) && this.ballDirection.x > 0
+
+            if (didHitPaddle1 || didHitPaddle2) {
+                this.ballDirection.x *= -1
+                this.ballVelocity *= 1.2
+            }
+
+            this.updateBallPosition(newBallPosition.x, newBallPosition.y)
+
+            if (newBallPosition.x <= 0) {
+                this.increaseScore(0)
+            }
+            if (newBallPosition.x >= document.body.clientWidth) {
+                this.increaseScore(1)
+            }
+        } finally {
+            // Updates the lastUpdateTime.
+            this.lastUpdateTime = Date.now()
         }
+    }
 
-        const isBallHeadingAboveScreen = newBallPosition.y <= 0 && this.ballDirection.y < 0
-        const isBallHeadingBelowScreen = newBallPosition.y + this.elements.ball.offsetHeight >= document.body.clientHeight && this.ballDirection.y > 0
+    increaseScore(playerIndex) {
+        this.scores[playerIndex]++
 
-        if (isBallHeadingAboveScreen || isBallHeadingBelowScreen) {
-            this.ballDirection.y *= -1
-        }
+        this.elements.scoreboard[playerIndex].innerText = this.scores[playerIndex]
 
-        const ballRect = {
-            x: this.elements.ball.offsetLeft,
-            y: this.elements.ball.offsetTop,
-            width: this.elements.ball.offsetWidth,
-            height: this.elements.ball.offsetHeight
-        }
-
-        const paddle1Rect = {
-            x: this.elements.paddle1.offsetLeft,
-            y: this.elements.paddle1.offsetTop,
-            width: this.elements.paddle1.offsetWidth,
-            height: this.elements.paddle1.offsetHeight
-        }
-
-        const paddle2Rect = {
-            x: this.elements.paddle2.offsetLeft,
-            y: this.elements.paddle2.offsetTop,
-            width: this.elements.paddle2.offsetWidth,
-            height: this.elements.paddle2.offsetHeight
-        }
-
-        const didHitPaddle1 = doRectanglesIntersect(ballRect, paddle1Rect) && this.ballDirection.x < 0
-        const didHitPaddle2 = doRectanglesIntersect(ballRect, paddle2Rect) && this.ballDirection.x > 0
-
-        if (didHitPaddle1 || didHitPaddle2) {
-            this.ballDirection.x *= -1
-        }
-
-        this.updateBallPosition(newBallPosition.x, newBallPosition.y)
-
-        if (newBallPosition.x <= 0) {
-            this.scores[1] += 1
-            this.elements.scoreboard2.innerText = this.scores[1]
+        const winningIndex = this.scores.findIndex(score => score === WINNING_SCORE)
+        if (winningIndex > -1) {
+            gameOverMessage.innerText = `Player ${winningIndex + 1} wins!`
+            this.isGameOver = true
+            this.elements.gameOverOverlay.style.visibility = 'visible'
+        } else {
             this.newRound()
         }
-        if (newBallPosition.x >= document.body.clientWidth) {
-            this.scores[0] += 1
-            this.elements.scoreboard1.innerText = this.scores[0]
-            this.newRound()
-        }
-
-        // Updates the lastUpdateTime.
-        this.lastUpdateTime = Date.now()
     }
 
     // Moves paddles up and down
-    handleKeyDown(event) {
-        if (event.key === 'w') {
-            // Move the first paddle up
-            this.elements.paddle1.style.top = `${this.elements.paddle1.offsetTop - document.body.clientHeight / 20}px`
-        } else if (event.key === 's') {
-            // Move the first paddle down
-            this.elements.paddle1.style.top = `${this.elements.paddle1.offsetTop + document.body.clientHeight / 20}px`
+    handleKeyDown(elapsedSeconds) {
+        const distance = document.body.clientHeight / 2 * elapsedSeconds
+
+        if (this.pressedKeys['w']) {
+            this.movePaddle(0, -distance)
         }
 
-        if (event.key === 'ArrowUp') {
-            // Move the second paddle up
-            this.elements.paddle2.style.top = `${this.elements.paddle2.offsetTop - document.body.clientHeight / 20}px`
-        } else if (event.key === 'ArrowDown') {
-            // Move the second paddle down
-            this.elements.paddle2.style.top = `${this.elements.paddle2.offsetTop + document.body.clientHeight / 20}px`
+        if (this.pressedKeys['s']) {
+            this.movePaddle(0, distance)
         }
+
+        if (this.pressedKeys['ArrowUp']) {
+            this.movePaddle(1, -distance)
+        }
+
+        if (this.pressedKeys['ArrowDown']) {
+            this.movePaddle(1, distance)
+        }
+    }
+
+    movePaddle(paddleIndex, distance) {
+        const paddle = this.elements.paddles[paddleIndex]
+
+        let top = paddle.offsetTop
+        const height = paddle.offsetHeight
+
+        top += distance
+
+        if (top < 0) {
+            top = 0
+        }
+
+        if (top + height > document.body.clientHeight) {
+            top = document.body.clientHeight - height
+        }
+
+        paddle.style.top = `${top}px`
     }
 }
