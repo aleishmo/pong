@@ -57,7 +57,6 @@ export class GameScreen {
 
         // Starts the game loop by setting an interval with a frequency of 1000 / this.fps (which is approximately 33.33 ms for a target of 30 FPS). The interval triggers the update method repeatedly to update the game state.
         this.updateTimerId = setInterval(() => this.update(), 1000 / this.fps)
-
     }
 
     stop() {

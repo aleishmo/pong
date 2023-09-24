@@ -4,8 +4,8 @@
 }
 
 @font-face {
-    font-family: Pong-Score;
-    src: url('pong-score.woff2') format('woff2');
+    font-family: Pong-Font;
+    src: url('bit5x3.woff2') format('woff2');
 }
 
 body {
@@ -83,18 +83,21 @@ body {
     flex-direction: column;
     gap: 3vh;
     visibility: hidden;
+    background-color: rgba(0 0 0 / 0.6);
 }
 
 #gameOverMessage {
-    background-color: black;
     font-size: 6vh;
     font-family: Pong-Font;
+    text-shadow: 0 0 20px #000;
+    text-align: center;
 }
 
 #restartButton {
     font-size: 3vh;
     font-family: Pong-Font;
     padding: 1vh;
+    padding-bottom: 2px;
     background-color: #000;
     color: #fff;
     border: 3px solid #fff;
