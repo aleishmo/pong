@@ -2,6 +2,7 @@ import { getElementById } from "./getElementById.js"
 import { centerVertically } from "./centerVertically.js"
 import { randomRange } from "./randomRange.js"
 import { doRectanglesIntersect } from "./doRectanglesIntersect.js"
+import { getIntersectionBetweenLines } from "./getIntersectionBetweenLines.js"
 
 const WINNING_SCORE = 2
 
@@ -103,6 +104,22 @@ export class GameScreen {
 
             this.handleKeyDown(elapsedSeconds)
 
+            const paddleRects = [
+                {
+                    x: this.elements.paddles[0].offsetLeft,
+                    y: this.elements.paddles[0].offsetTop,
+                    width: this.elements.paddles[0].offsetWidth,
+                    height: this.elements.paddles[0].offsetHeight
+                }, {
+                    x: this.elements.paddles[1].offsetLeft,
+                    y: this.elements.paddles[1].offsetTop,
+                    width: this.elements.paddles[1].offsetWidth,
+                    height: this.elements.paddles[1].offsetHeight
+                }
+            ]
+
+            const maxBallMovement = paddleRects[0].width
+
             let newBallPosition = {
                 x: this.ballPosition.x + this.ballDirection.x * this.ballVelocity * elapsedSeconds,
                 y: this.ballPosition.y + this.ballDirection.y * this.ballVelocity * elapsedSeconds
@@ -115,42 +132,45 @@ export class GameScreen {
                 this.ballDirection.y *= -1
             }
 
-            const ballRect = {
-                x: this.elements.ball.offsetLeft,
-                y: this.elements.ball.offsetTop,
-                width: this.elements.ball.offsetWidth,
-                height: this.elements.ball.offsetHeight
-            }
+            const ballWidth = this.elements.ball.offsetWidth
+            const ballHeight = this.elements.ball.offsetHeight
+            const halfBallWidth = ballWidth * 0.5
+            const halfBallHeight = ballHeight * 0.5
 
-            const paddle1Rect = {
-                x: this.elements.paddles[0].offsetLeft,
-                y: this.elements.paddles[0].offsetTop,
-                width: this.elements.paddles[0].offsetWidth,
-                height: this.elements.paddles[0].offsetHeight
-            }
+            for (let paddleIndex = 0; paddleIndex <= 1; paddleIndex++) {
+                if (paddleIndex === 0 && this.ballDirection.x > 0) continue
+                if (paddleIndex === 1 && this.ballDirection.x < 0) continue
 
-            const paddle2Rect = {
-                x: this.elements.paddles[1].offsetLeft,
-                y: this.elements.paddles[1].offsetTop,
-                width: this.elements.paddles[1].offsetWidth,
-                height: this.elements.paddles[1].offsetHeight
-            }
-
-            const didHitPaddle1 = doRectanglesIntersect(ballRect, paddle1Rect) && this.ballDirection.x < 0
-            const didHitPaddle2 = doRectanglesIntersect(ballRect, paddle2Rect) && this.ballDirection.x > 0
-
-            if (didHitPaddle1 || didHitPaddle2) {
-                this.ballDirection.x *= -1
-                this.ballVelocity *= 1.2
+                const paddleRect = paddleRects[paddleIndex]
+                const collisionCentre = getIntersectionBetweenLines({
+                    x1: this.ballPosition.x + halfBallWidth,
+                    y1: this.ballPosition.y + halfBallHeight,
+                    x2: newBallPosition.x + halfBallWidth,
+                    y2: newBallPosition.y + halfBallHeight,
+                }, {
+                    x1: paddleRect.x + (paddleIndex === 0 ? paddleRect.width : 0),
+                    y1: paddleRect.y,
+                    x2: paddleRect.x + (paddleIndex === 0 ? paddleRect.width : 0),
+                    y2: paddleRect.y + paddleRect.height,
+                })
+                if (collisionCentre) {
+                    newBallPosition = {
+                        x: collisionCentre.x - (paddleIndex * ballWidth),
+                        y: collisionCentre.y - halfBallHeight,
+                    }
+                    this.ballDirection.x *= -1
+                    this.ballVelocity = Math.min(this.ballVelocity * 1.2, document.body.clientWidth)
+                    break
+                }
             }
 
             this.updateBallPosition(newBallPosition.x, newBallPosition.y)
 
             if (newBallPosition.x <= 0) {
-                this.increaseScore(0)
+                this.increaseScore(1)
             }
             if (newBallPosition.x >= document.body.clientWidth) {
-                this.increaseScore(1)
+                this.increaseScore(0)
             }
         } finally {
             // Updates the lastUpdateTime.
