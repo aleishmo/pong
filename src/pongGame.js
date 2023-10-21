@@ -4,9 +4,9 @@ import { randomRange } from "./randomRange.js"
 import { doRectanglesIntersect } from "./doRectanglesIntersect.js"
 import { getIntersectionBetweenLines } from "./getIntersectionBetweenLines.js"
 
-const WINNING_SCORE = 2
+const WINNING_SCORE = 10
 
-export class GameScreen {
+export class PongGame {
     constructor() {
         this.elements = {
             paddles: [getElementById('paddle1'), getElementById('paddle2')],
@@ -14,7 +14,15 @@ export class GameScreen {
             scoreboard: [getElementById('scoreboard1'), getElementById('scoreboard2')],
             gameOverOverlay: getElementById('gameOverOverlay'),
             gameOverMessage: getElementById('gameOverMessage'),
-            restartButton: getElementById('restartButton')
+            restartButton: getElementById('restartButton'),
+            startScreen: getElementById('startScreen'),
+            startButton: getElementById('startButton'),
+            gameScreen: getElementById('gameScreen'),
+            muteButton: getElementById('muteButton')
+        }
+        this.sounds = {
+            hitPaddle: this.createSound('sounds/hitPaddle.mp3', .2),
+            hitWall: this.createSound('sounds/hitWall.mp3', .2),
         }
         this.updateTimerId = undefined // Stores the ID of the interval used to update the game state continuously.
         this.ballVelocity = 0 // The velocity of the ball
@@ -32,6 +40,8 @@ export class GameScreen {
         this.isGameOver = false
 
         this.elements.restartButton.addEventListener('click', () => this.start())
+        this.elements.startButton.addEventListener('click', () => this.start())
+        this.elements.muteButton.addEventListener('click', () => this.toggleMuted())
 
         this.pressedKeys = {};
         document.addEventListener('keydown', (event) => {
@@ -40,11 +50,44 @@ export class GameScreen {
         document.addEventListener('keyup', (event) => {
             this.pressedKeys[event.key] = false;
         });
+
+        this.elements.startScreen.style.visibility = 'visible'
+        this.elements.gameScreen.style.visibility = 'hidden'
+
+        this.muted = localStorage.getItem('muted') === 'true'
+        this.updateVolume()
+    }
+
+    toggleMuted() {
+        this.muted = !this.muted
+        this.updateVolume()
+        localStorage.setItem('muted', this.muted.toString())
+    }
+
+    updateVolume() {
+        this.sounds.hitPaddle.muted = this.muted
+        this.sounds.hitWall.muted = this.muted
+        this.elements.muteButton.style.backgroundImage = this.muted
+            ? "url('images/volume-off.png')"
+            : "url('images/volume-on.png')"
+    }
+
+    createSound(sourceUrl, volume = 1) {
+        const sound = document.createElement('audio')
+        sound.src = sourceUrl
+        sound.setAttribute('preload', 'auto')
+        sound.setAttribute('controls', 'none')
+        sound.style.display = 'none'
+        sound.volume = volume
+        document.body.appendChild(sound)
+        return sound
     }
 
     start() {
         this.isGameOver = false
         this.elements.gameOverOverlay.style.visibility = 'hidden'
+        this.elements.startScreen.style.visibility = 'hidden'
+        this.elements.gameScreen.style.visibility = 'visible'
 
         this.newRound()
 
@@ -130,6 +173,7 @@ export class GameScreen {
 
             if (isBallHeadingAboveScreen || isBallHeadingBelowScreen) {
                 this.ballDirection.y *= -1
+                this.sounds.hitWall.play()
             }
 
             const ballWidth = this.elements.ball.offsetWidth
@@ -160,6 +204,7 @@ export class GameScreen {
                     }
                     this.ballDirection.x *= -1
                     this.ballVelocity = Math.min(this.ballVelocity * 1.2, document.body.clientWidth)
+                    this.sounds.hitPaddle.play()
                     break
                 }
             }

@@ -1,4 +1,3 @@
-import { GameScreen } from "./gameScreen.js";
+import { PongGame } from "./pongGame.js";
 
-const gameScreen = new GameScreen()
-gameScreen.start()
+const pongGame = new PongGame()
