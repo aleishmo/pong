@@ -21,11 +21,14 @@ export class PongGame {
             muteButton: getElementById('muteButton')
         }
         this.sounds = {
-            hitPaddle: this.createSound('sounds/hitPaddle.mp3', .2),
-            hitWall: this.createSound('sounds/hitWall.mp3', .2),
+            hitPaddle: this.createSound('sounds/hitPaddle.mp3', .3),
+            hitWall: this.createSound('sounds/hitWall.mp3', .3),
+            point: this.createSound('sounds/point.mp3', .3),
+            gameOver: this.createSound('sounds/gameOver.mp3', .3),
+            clickButton: this.createSound('sounds/clickButton.mp3', .3)
         }
         this.updateTimerId = undefined // Stores the ID of the interval used to update the game state continuously.
-        this.ballVelocity = 0 // The velocity of the ball
+        this.ballVelocity = 0
         this.ballPosition = {
             x: 0,
             y: 0
@@ -39,8 +42,16 @@ export class PongGame {
         this.fps = 30 // The desired frames per second for the game. It's set to 30, meaning the game aims to update the screen 30 times per second.
         this.isGameOver = false
 
-        this.elements.restartButton.addEventListener('click', () => this.start())
-        this.elements.startButton.addEventListener('click', () => this.start())
+        this.elements.restartButton.addEventListener('click', () => {
+            this.start()
+            this.sounds.clickButton.play()
+            this.sounds.gameOver.pause()
+            this.sounds.gameOver.currentTime = 0
+        })
+        this.elements.startButton.addEventListener('click', () => {
+            this.start()
+            this.sounds.clickButton.play()
+        })
         this.elements.muteButton.addEventListener('click', () => this.toggleMuted())
 
         this.pressedKeys = {};
@@ -67,6 +78,9 @@ export class PongGame {
     updateVolume() {
         this.sounds.hitPaddle.muted = this.muted
         this.sounds.hitWall.muted = this.muted
+        this.sounds.point.muted = this.muted
+        this.sounds.gameOver.muted = this.muted
+        this.sounds.clickButton.muted = this.muted
         this.elements.muteButton.style.backgroundImage = this.muted
             ? "url('images/volume-off.png')"
             : "url('images/volume-on.png')"
@@ -91,11 +105,9 @@ export class PongGame {
 
         this.newRound()
 
-        // Centers paddles vertically on the game screen.
         centerVertically(this.elements.paddles[0])
         centerVertically(this.elements.paddles[1])
 
-        // Sets the initial scores on the scoreboards to zero.
         this.scores = [0, 0]
         this.elements.scoreboard.forEach(scoreboard => scoreboard.innerText = '0')
 
@@ -213,9 +225,11 @@ export class PongGame {
 
             if (newBallPosition.x <= 0) {
                 this.increaseScore(1)
+                this.sounds.point.play()
             }
             if (newBallPosition.x >= document.body.clientWidth) {
                 this.increaseScore(0)
+                this.sounds.point.play()
             }
         } finally {
             // Updates the lastUpdateTime.
@@ -233,12 +247,12 @@ export class PongGame {
             gameOverMessage.innerText = `Player ${winningIndex + 1} wins!`
             this.isGameOver = true
             this.elements.gameOverOverlay.style.visibility = 'visible'
+            this.sounds.gameOver.play()
         } else {
             this.newRound()
         }
     }
 
-    // Moves paddles up and down
     handleKeyDown(elapsedSeconds) {
         const distance = document.body.clientHeight / 2 * elapsedSeconds
 
